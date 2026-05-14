@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Angular build
+finanzas-app/frontend/dist/
+
+# NestJS build
+finanzas-app/backend/dist/
+
+# Android build output (se regenera con gradlew)
+finanzas-app/frontend/android/build/
+finanzas-app/frontend/android/app/build/
+finanzas-app/frontend/android/.gradle/
+finanzas-app/frontend/android/local.properties
+finanzas-app/frontend/android/capacitor-cordova-android-plugins/
+
+# Android web assets (se regeneran con cap sync)
+finanzas-app/frontend/android/app/src/main/assets/public/
+finanzas-app/frontend/android/app/src/main/assets/capacitor.config.json
+finanzas-app/frontend/android/app/src/main/assets/capacitor.plugins.json
+finanzas-app/frontend/android/app/src/main/res/xml/config.xml
+
+# Environment & secrets
+.env
+.env.*
+finanzas-app/backend/.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Claude Code local settings
+.claude/

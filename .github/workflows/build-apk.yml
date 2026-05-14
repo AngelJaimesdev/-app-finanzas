@@ -1,0 +1,56 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite ejecutar manualmente desde GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Instalar dependencias del frontend
+        working-directory: finanzas-app/frontend
+        run: npm ci
+
+      - name: Compilar Angular (producción)
+        working-directory: finanzas-app/frontend
+        run: npm run build
+
+      - name: Sincronizar Capacitor → Android
+        working-directory: finanzas-app/frontend
+        run: npx cap sync android
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Crear local.properties con ruta del SDK
+        working-directory: finanzas-app/frontend/android
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Dar permisos a gradlew
+        working-directory: finanzas-app/frontend/android
+        run: chmod +x gradlew
+
+      - name: Compilar APK debug
+        working-directory: finanzas-app/frontend/android
+        run: ./gradlew assembleDebug
+
+      - name: Subir APK como artefacto descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: MisFinanzas-debug
+          path: finanzas-app/frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

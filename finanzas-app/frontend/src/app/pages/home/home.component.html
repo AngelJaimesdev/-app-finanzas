@@ -1,0 +1,256 @@
+<div class="page-wrapper">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title">
+      <span class="header-icon">💰</span>
+      <h1>Mis Finanzas</h1>
+    </div>
+    <div class="header-actions">
+      <span class="user-name">{{ user?.name || 'Usuario' }}</span>
+      <button class="btn-logout" (click)="logout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- Main grid: left col + right col on desktop -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+
+      <!-- Balance Card -->
+      <div class="balance-card" (click)="openBalanceModal()">
+        <p class="balance-label">Saldo actual</p>
+        <h2 class="balance-amount" [class.negative]="summary.currentBalance < 0">
+          {{ formatCurrency(summary.currentBalance) }}
+        </h2>
+        <div class="balance-details">
+          <span class="balance-initial">Base: {{ formatCurrency(summary.initialBalance) }}</span>
+          <span class="edit-hint">✏️ Editar base</span>
+        </div>
+        <div class="balance-stats">
+          <div class="stat income">
+            <span class="stat-icon">↑</span>
+            <div>
+              <p class="stat-label">Ingresos</p>
+              <p class="stat-value">{{ formatCurrency(summary.totalIncome) }}</p>
+            </div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat expense">
+            <span class="stat-icon">↓</span>
+            <div>
+              <p class="stat-label">Gastos</p>
+              <p class="stat-value">{{ formatCurrency(summary.totalExpenses) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions">
+        <button class="btn-income" (click)="openModal('income')">
+          <span class="btn-icon">+</span>
+          <span>Ingreso</span>
+        </button>
+        <button class="btn-expense" (click)="openModal('expense')">
+          <span class="btn-icon">−</span>
+          <span>Gasto</span>
+        </button>
+        <button class="btn-category" (click)="openCategoryModal()">
+          <span class="btn-icon">🏷</span>
+          <span>Categoría</span>
+        </button>
+      </div>
+
+      <!-- Donut Chart -->
+      <div class="chart-card">
+        <h3 class="section-title">Distribución de gastos</h3>
+
+        <div *ngIf="!hasExpenses" class="chart-empty">
+          <span class="chart-empty-icon">📊</span>
+          <p>Sin gastos registrados</p>
+        </div>
+
+        <div *ngIf="hasExpenses" class="chart-container">
+          <svg viewBox="0 0 200 200" class="donut-svg">
+            <!-- Track -->
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#e8ecf0" stroke-width="32"/>
+            <!-- Segments -->
+            <circle
+              *ngFor="let seg of chartSegments"
+              cx="100" cy="100" r="70"
+              fill="none"
+              [attr.stroke]="seg.color"
+              stroke-width="32"
+              stroke-linecap="butt"
+              [attr.stroke-dasharray]="seg.dashArray"
+              [attr.stroke-dashoffset]="seg.dashOffset"
+              transform="rotate(-90 100 100)"
+              class="donut-seg"
+            />
+            <!-- Center text -->
+            <text x="100" y="91" text-anchor="middle" class="chart-center-title">Gastos</text>
+            <text x="100" y="113" text-anchor="middle" class="chart-center-amount">
+              {{ formatShort(summary.totalExpenses) }}
+            </text>
+          </svg>
+
+          <!-- Legend -->
+          <div class="chart-legend">
+            <div class="legend-item" *ngFor="let seg of chartSegments">
+              <span class="legend-dot" [style.background]="seg.color"></span>
+              <span class="legend-name">{{ seg.name }}</span>
+              <span class="legend-pct">{{ seg.percentage }}%</span>
+              <span class="legend-amount">{{ formatCurrency(seg.amount) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+      <h3 class="section-title">Movimientos</h3>
+
+      <div *ngIf="transactions.length === 0" class="empty-state">
+        <span class="empty-icon">📋</span>
+        <p>Sin movimientos aún.<br>¡Registra tu primer movimiento!</p>
+      </div>
+
+      <div class="transaction-list">
+        <div class="transaction-item" *ngFor="let t of transactions">
+          <div class="transaction-dot" [style.background]="getCategoryColor(t)"></div>
+          <div class="transaction-info">
+            <span class="transaction-category">{{ getCategoryName(t) }}</span>
+            <span class="transaction-desc" *ngIf="t.description">{{ t.description }}</span>
+            <span class="transaction-date">{{ formatDate(t.createdAt) }}</span>
+          </div>
+          <div class="transaction-right">
+            <span
+              class="transaction-amount"
+              [class.income]="t.type === 'income'"
+              [class.expense]="t.type === 'expense'"
+            >
+              {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount) }}
+            </span>
+            <button class="btn-delete" (click)="deleteTransaction(t.id)" title="Eliminar">✕</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /col-right -->
+
+  </div><!-- /main-grid -->
+</div><!-- /page-wrapper -->
+
+
+<!-- Modal: Agregar Transacción -->
+<div class="modal-overlay" *ngIf="showTransactionModal" (click)="showTransactionModal = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-type-badge" [class.income]="transactionForm.type === 'income'" [class.expense]="transactionForm.type === 'expense'">
+        {{ transactionForm.type === 'income' ? '↑ Ingreso' : '↓ Gasto' }}
+      </div>
+      <button class="modal-close" (click)="showTransactionModal = false">✕</button>
+    </div>
+    <h3>{{ transactionForm.type === 'income' ? 'Nuevo Ingreso' : 'Nuevo Gasto' }}</h3>
+
+    <div class="form-group">
+      <label>Monto ($)</label>
+      <input type="number" [(ngModel)]="transactionForm.amount" placeholder="0" min="0" />
+    </div>
+    <div class="form-group">
+      <label>Categoría</label>
+      <div class="category-select-row">
+        <select [(ngModel)]="transactionForm.categoryId">
+          <option [ngValue]="null">Sin categoría</option>
+          <option *ngFor="let cat of categories" [ngValue]="cat.id">{{ cat.name }}</option>
+        </select>
+        <button class="btn-add-cat" (click)="openCategoryModal()" title="Nueva categoría">+</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción (opcional)</label>
+      <input type="text" [(ngModel)]="transactionForm.description" placeholder="Ej: Almuerzo" />
+    </div>
+
+    <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="showTransactionModal = false">Cancelar</button>
+      <button
+        class="btn-save"
+        [class.income]="transactionForm.type === 'income'"
+        [class.expense]="transactionForm.type === 'expense'"
+        (click)="saveTransaction()"
+        [disabled]="loading"
+      >
+        {{ loading ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Saldo Inicial -->
+<div class="modal-overlay" *ngIf="showBalanceModal" (click)="showBalanceModal = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-type-badge income">💰 Saldo base</div>
+      <button class="modal-close" (click)="showBalanceModal = false">✕</button>
+    </div>
+    <h3>Configurar saldo base</h3>
+    <p class="modal-hint">Valor inicial desde el que parte tu balance.</p>
+
+    <div class="form-group">
+      <label>Monto ($)</label>
+      <input type="number" [(ngModel)]="newBalance" placeholder="0" min="0" />
+    </div>
+
+    <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="showBalanceModal = false">Cancelar</button>
+      <button class="btn-save income" (click)="saveInitialBalance()" [disabled]="loading">
+        {{ loading ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Categoría -->
+<div class="modal-overlay" *ngIf="showCategoryModal" (click)="showCategoryModal = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-type-badge" style="background:#6c5ce7">🏷 Categoría</div>
+      <button class="modal-close" (click)="showCategoryModal = false">✕</button>
+    </div>
+    <h3>Nueva Categoría</h3>
+
+    <div class="form-group">
+      <label>Nombre</label>
+      <input type="text" [(ngModel)]="newCategory.name" placeholder="Ej: Comida, Transporte" />
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker">
+        <div
+          *ngFor="let color of COLORS"
+          class="color-dot"
+          [style.background]="color"
+          [class.selected]="newCategory.color === color"
+          (click)="newCategory.color = color"
+        ></div>
+      </div>
+    </div>
+
+    <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="showCategoryModal = false">Cancelar</button>
+      <button class="btn-save" style="background:#6c5ce7" (click)="saveCategory()" [disabled]="loading">
+        {{ loading ? 'Guardando...' : 'Crear' }}
+      </button>
+    </div>
+  </div>
+</div>
